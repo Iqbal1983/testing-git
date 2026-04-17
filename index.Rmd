@@ -9,32 +9,124 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-
-
+```{r}
 library(tidyverse)
 
-diamonds%>% 
-  ggplot()+
-  geom_point(
-    aes(
-      x = carat, 
-      y = price, 
-      color = cut
-    )
-  )+ facet_wrap(~color)
+library(here)
 ```
 
-## Including Plots
+```{r}
+readxl::read_excel(
+    "EVDataExplorer2025.xlsx"
+) -> evdata
+```
 
-You can also embed plots, for example:
+```{r}
+read_csv(
+   "owid-co2-data.csv"
+) -> owd
+```
+
+```{r}
+read.csv(
+    "api-data.csv"
+) -> apidata
+```
+
+
+
+```{r}
+apidata %>%
+  group_by(Country.Name, Country.Code, Indicator.Name, Indicator.Code) %>% 
+  pivot_longer( 
+    cols = 5:70, 
+    names_to = "years", 
+    values_to = "values") -> apidata.log
+
+apidata.log %>% 
+  mutate(
+    years = stringr::str_remove_all(years, "X"),  
+    years = as.integer(years)
+  ) -> apidata.log
+
+
+
+apidata.log %>% 
+  ungroup() %>%
+  select(-4) %>%
+  group_by(Country.Name, Country.Code, years) %>%
+  pivot_wider(
+    names_from = Indicator.Name, 
+    values_from = values
+  ) -> apidata.clean
+
+
+```
+
+
+```{r}
+
+
+owd %>%
+  left_join(
+    apidata.clean, 
+    by = c(
+      "country" = "Country.Name", 
+      "year" = "years"
+    )
+  ) -> owd2
+
+```
+
+
+```{r}
+
+evdata %>%
+  left_join(
+    owd2, by = c(
+      "region_country" = "country", 
+      "year" = "year"
+    )
+  ) -> evdata2
+
+
+```
+
+```{r}
+read.csv(
+    "popdata.csv"
+) -> popdata
+```
+
+
+```{r}
+
+popdata %>%
+  select(-c(3, 4)) %>%
+  group_by(
+    Country.Name, Country.Code
+    ) %>%
+  pivot_longer(
+    names_to = "year",
+    values_to = "population",
+    cols = 3:68
+    ) -> popdata.long
+
+
+popdata.long %>% 
+  mutate(
+    year = stringr::str_remove_all(
+      year,
+      "X"
+      )
+    ) -> popdata.long
+
+
+```
+
+
+
 
 ```{r pressure, echo=FALSE}
 plot(pressure)
